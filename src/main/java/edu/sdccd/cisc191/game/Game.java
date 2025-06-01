@@ -26,6 +26,12 @@ import java.util.concurrent.TimeUnit;                   // 13
 
 
 // Main Game Class (Integrates JavaFX, Shipyard System, and Exploration System)
+
+/**
+ * Main Game Class.
+ * Integrates JavaFX, shipyard, exploration, resource management, and the core game loop.
+ * Handles all user interactions, state transitions, and system initializations.
+ */
 public class Game extends Application {
     private Shipyard shipyard;
     private ExplorationSystem explorationSystem;
@@ -46,51 +52,63 @@ public class Game extends Application {
     private Label locationLabel;
 
     private GameState gameState;
-
+    /**
+     * Enumeration for different game states.
+     */
     public enum GameState {                     // Define an enumeration for different game states
         MENU, PLAYING, PAUSED, GAME_OVER
     }
-
+    /**
+     * Launches the JavaFX application.
+     * @param args program arguments
+     */
     public static void main(String[] args) {    // Launch the JavaFX application
         launch(args);
     }
 
     @Override
     public void start (Stage primaryStage) {    // Main window
-        // Initialize game components
-        shipyard = new Shipyard();
-        explorationSystem = new ExplorationSystem();
-        resourceManagement = new ResourceManagement();
-        inventory = new PlayerInventory();
-        player = new Player ("Captain");
-        player.addShip(new GalacticShip("Starter Ship", 100, 20)); // Start with a ship
-        locationLabel = new Label("Location: Earth"); // Default location
-        gameBoard = new GameBoard();
-        gameBoard.initializeBoard();
-        movementManager = new PlayerMovementManager(player, gameBoard, inventory);
+        try {
+            // Initialize game components
+            shipyard = new Shipyard();
+            explorationSystem = new ExplorationSystem();
+            resourceManagement = new ResourceManagement();
+            inventory = new PlayerInventory();
+            player = new Player("Captain");
+            player.addShip(new GalacticShip("Starter Ship", 100, 20));
+            locationLabel = new Label("Location: Earth");
+            gameBoard = new GameBoard();
+            gameBoard.initializeBoard();
+            movementManager = new PlayerMovementManager(player, gameBoard, inventory);
 
-        gameState = GameState.MENU;
+            gameState = GameState.MENU;
 
-        // Create UI elements
-        statusLabel = new Label("Welcome to Galactic Strategy! (Press ENTER to start)");
-        fleetListView = new ListView<>();
-        updateFleetDisplay();   // Load fleet data
+            // Create UI elements
+            statusLabel = new Label("Welcome to Galactic Strategy! (Press ENTER to start)");
+            fleetListView = new ListView<>();
+            updateFleetDisplay();
 
-        gameLog = new TextArea();
-        gameLog.setEditable(false);
-        gameLog.setPrefHeight(150);
+            gameLog = new TextArea();
+            gameLog.setEditable(false);
+            gameLog.setPrefHeight(150);
 
-        resourceLabel = new Label("Resources:\n" + inventory.displayResources());
+            resourceLabel = new Label("Resources:\n" + inventory.displayResources());
 
-        // Shipyard UI Buttons
-        Button buildFighterBtn = new Button("Build Fighter (10 Minerals, 5 Energy)");
-        Button buildCruiserBtn = new Button("Build Cruiser (15 Minerals, 7 Energy)");
-        Button buildBattleshipBtn = new Button("Build Battleship (20 Minerals, 10 Energy)");
-        Button upgradeShipBtn = new Button("Upgrade Selected Ship");
+            // Shipyard UI Buttons
+            Button buildFighterBtn = new Button("Build Fighter (10 Minerals, 5 Energy)");
+            Button buildCruiserBtn = new Button("Build Cruiser (15 Minerals, 7 Energy)");
+            Button buildBattleshipBtn = new Button("Build Battleship (20 Minerals, 10 Energy)");
+            Button upgradeShipBtn = new Button("Upgrade Selected Ship");
 
-        // Resource Gathering Button
-        Button gatherDilithiumBtn = new Button("Gather Dilithium");
-        gatherDilithiumBtn.setOnAction(e -> gatherDilithium());
+            // Resource Gathering Button
+            Button gatherDilithiumBtn = new Button("Gather Dilithium");
+            gatherDilithiumBtn.setOnAction(e -> {
+                try {
+                    gatherDilithium();
+                } catch (Exception ex) {
+                    gameLog.appendText("Error gathering Dilithium: " + ex.getMessage() + "\n");
+                }
+            });
 
         // Exploration UI
         Button exploreBtn = new Button("Explore Planet");
@@ -138,16 +156,25 @@ public class Game extends Application {
         rightBtn.setOnAction(e -> handleMove("right"));
 
         // Game loop
-        AnimationTimer gameLoop = new AnimationTimer() {
-            @Override
-            public void handle(long now) {  // 'now' is the current timestamp in nanoseconds
-                updateGame();
-            }
-        };
-        gameLoop.start();
+            AnimationTimer gameLoop = new AnimationTimer() {
+                @Override
+                public void handle(long now) {
+                    updateGame();
+                }
+            };
+            gameLoop.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Optionally, show an error dialog to the user
+        }
     }
 
     // Handles keyboard input for game state management
+
+    /**
+     * Handles keyboard input for game state management.
+     * @param key The key pressed
+     */
     private void handleKeyPress(KeyCode key) {
         switch (key) {
             case ENTER:
@@ -185,6 +212,7 @@ public class Game extends Application {
                 break;
         }
     }
+
 
     private void handleMove(String direction) {
         boolean moved = movementManager.move(direction);

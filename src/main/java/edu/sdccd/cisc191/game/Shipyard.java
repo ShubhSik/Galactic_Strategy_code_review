@@ -32,7 +32,11 @@ public class Shipyard {
         this.shipBuilderPool = Executors.newFixedThreadPool(2); // Allows 2 ships to be built at a time
 
         initializeShipyard();
-        loadShipyardState();
+        try {
+            loadShipyardState();
+        } catch (Exception e) {
+            System.err.println("Error loading shipyard state at startup: " + e.getMessage());
+        }
     }
 
     // Initializes default ship types available in the shipyard
@@ -65,6 +69,11 @@ public class Shipyard {
         shipBuilderPool.submit(() -> {
             try {
                 Thread.sleep(2000); // Simulate shipbuilding time
+                GalacticShip template = availableShips.get(shipType);
+                if (template == null) {
+                    System.err.println("Template not found for ship type: " + shipType);
+                    return;
+                }
                 GalacticShip newShip = new GalacticShip(shipType, availableShips.get(shipType).getHealth(), availableShips.get(shipType).getAttackPower());
                 synchronized (playerFleet) {
                     playerFleet.add(newShip);
@@ -73,6 +82,9 @@ public class Shipyard {
                 saveShipyardState(); // Save updated fleet after ship is built
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                System.err.println("Ship building interrupted for " + shipType);
+            } catch (Exception e) {
+                System.err.println("Unexpected error during ship build: " + e.getMessage());
             }
         });
     }
@@ -88,7 +100,11 @@ public class Shipyard {
                 if (ship.getName().equalsIgnoreCase(shipName)) {
                     ship.takeDamage(-50); // Increases health by 50
                     System.out.println(shipName + " upgraded! New Health: " + ship.getHealth());
-                    saveShipyardState(); // Save fleet upgrades
+                    try {
+                        saveShipyardState(); // Save fleet upgrades
+                    } catch (Exception e) {
+                        System.err.println("Error saving state after upgrade: " + e.getMessage());
+                    }
                     return;
                 }
             }
@@ -120,37 +136,77 @@ public class Shipyard {
 
     // Saves the player's fleet to a file using ObjectOutputStream
     private void saveShipyardState() {
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(saveFile))) {
+        File file = new File(saveFile);
+        File parentDir = file.getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            parentDir.mkdirs();
+        }
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(file))) {
             out.writeObject(playerFleet);
             System.out.println("Shipyard state saved.");
         } catch (IOException e) {
             System.err.println("Error saving shipyard state: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Unexpected error saving shipyard state: " + e.getMessage());
         }
     }
 
     // Load the player's fleet from a file using ObjectInputStream
     private void loadShipyardState() {
         File file = new File(saveFile);
-        if (!file.exists()) return; // No save file yet
-
+        if (!file.exists()) {
+            System.out.println("No shipyard save file found. Starting fresh.");
+            return;
+        }
         try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(saveFile))) {
-            List<GalacticShip> loadedFleet = (List<GalacticShip>) in.readObject();
-            synchronized (playerFleet) {
-                playerFleet.clear();
-                playerFleet.addAll(loadedFleet);
+            Object obj = in.readObject();
+            if (obj instanceof List) {
+                List<?> loadedFleet = (List<?>) obj;
+                synchronized (playerFleet) {
+                    playerFleet.clear();
+                    for (Object shipObj : loadedFleet) {
+                        if (shipObj instanceof GalacticShip) {
+                            playerFleet.add((GalacticShip) shipObj);
+                        }
+                    }
+                }
+                System.out.println("Shipyard state loaded.");
+            } else {
+                System.err.println("Shipyard save file format invalid.");
             }
-            System.out.println("Shipyard state loaded.");
-        } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Error loading shipyard states: " + e.getMessage());
+        } catch (IOException e) {
+            System.err.println("Error loading shipyard state: " + e.getMessage());
+        } catch (ClassNotFoundException e) {
+            System.err.println("Ship class definition not found while loading: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Unexpected error loading shipyard state: " + e.getMessage());
         }
     }
 
-    // Shuts down the ExecutorService for clean-up
+    /**
+     * Shuts down the ExecutorService for clean-up.
+     * Waits for all queued shipbuilding tasks to finish.
+     */
     public void shutdown() {
         shipBuilderPool.shutdown();
+        try {
+            if (!shipBuilderPool.awaitTermination(3, TimeUnit.SECONDS)) {
+                shipBuilderPool.shutdownNow();
+                System.out.println("Forced shutdown of shipBuilderPool.");
+            }
+        } catch (InterruptedException e) {
+            shipBuilderPool.shutdownNow();
+            Thread.currentThread().interrupt();
+            System.err.println("Interrupted during shipBuilderPool shutdown.");
+        }
     }
 
     // Test the Shipyard functionality
+    /**
+     * Standalone test method to demonstrate Shipyard functionality.
+     * Builds, upgrades, and displays ships.
+     * @param args unused
+     */
     public static void main(String[] args) {
         Shipyard shipyard = new Shipyard();
 
@@ -162,6 +218,7 @@ public class Shipyard {
             Thread.sleep(5000); // Wait for ships to be built
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            System.err.println("Test interrupted while waiting for ships to build.");
         }
 
         shipyard.displayPlayerFleet();

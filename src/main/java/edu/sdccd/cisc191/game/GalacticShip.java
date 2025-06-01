@@ -2,12 +2,23 @@ package edu.sdccd.cisc191.game;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.io.Serializable;
 
 /**
  * Represents a spaceship in the Galactic Strategy game.
- * Each ship has a name, health, attack power, and combat abilities, and can engage in combat.
+ * <p>
+ * Each ship has a name, health, attack power, and a set of combat abilities.
+ * Ships can engage in combat, take damage, and be upgraded.
+ * <p>
+ * Implements {@link Serializable} so instances can be saved and loaded as part of the game state.
+ *
  */
-public class GalacticShip {
+public class GalacticShip implements java.io.Serializable{
+    /**
+     * The serialVersionUID is used for versioning of serialized data.
+     * If any fields in this class change, this value should be updated.
+     */
+    private static final long serialVersionUID = 1L;
     private String name;
     private int health;
     private int attackPower;
